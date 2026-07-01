@@ -13,19 +13,21 @@ interface ISentimentFeed {
         string[] headlines;
         string[] headlineSources;
         string[] headlineSentiments;
+        string[] headlineUrls;
         uint256 timestamp;
         uint256 headlineCount;
     }
 
     function pushSnapshot(
-        int8 _score,
-        string calldata _signal,
-        string calldata _riskLevel,
-        string calldata _summary,
-        string[] calldata _topTokens,
-        string[] calldata _headlines,
-        string[] calldata _headlineSources,
-        string[] calldata _headlineSentiments
+        int8 score,
+        string memory signal,
+        string memory riskLevel,
+        string memory summary,
+        string[] memory topTokens,
+        string[] memory headlines,
+        string[] memory headlineSources,
+        string[] memory headlineSentiments,
+        string[] memory headlineUrls
     ) external;
 
     function getLatest() external view returns (HourlySnapshot memory);

@@ -33,14 +33,14 @@ contract SentimentAgentTest is Test {
     string constant INVALID_LLM_RESPONSE = "This is not valid JSON at all";
 
     // Sample HTTP responses
-    string constant SAMPLE_HTTP_RESPONSE = '{"results": [{"title": "BTC breaks 70k as ETF inflows surge"}]}';
+    string constant SAMPLE_HTTP_RESPONSE = '{"results": [{"title": "BTC breaks 70k as ETF inflows surge", "url": "https://example.com/1"}]}';
 
     string constant VALID_LLM_RESPONSE_SINGLE =
         '{"score": 42, "signal": "BULLISH", "riskLevel": "MEDIUM", '
         '"summary": "Bitcoin rallied above 70k as ETF inflows surged. Ethereum followed with strong DeFi volume.", '
         '"topTokens": ["BTC", "ETH", "SOL"], '
         '"headlineSentiments": ['
-        '{"headline": "BTC breaks 70k as ETF inflows surge", "source": "CryptoPanic", "sentiment": "bull"}'
+        '{"headline": "BTC breaks 70k as ETF inflows surge", "source": "NewsAPI", "sentiment": "bull"}'
         ']}';
 
     function setUp() public {
@@ -278,8 +278,10 @@ contract SentimentAgentTest is Test {
             abi.encode(uint256(42))
         );
 
-        vm.prank(deployer);
+        vm.startPrank(deployer);
         agent.runCycle(0);
+        agent.runCycle(0);
+        vm.stopPrank();
 
         assertEq(agent.cycleCount(), 1);
         assertEq(agent.lastScheduleId(), 42);
@@ -435,9 +437,14 @@ contract SentimentAgentTest is Test {
             abi.encode(uint256(1))
         );
 
-        // Run 3 cycles
+        // Run 3 full cycles
         vm.startPrank(deployer);
         agent.runCycle(0);
+        agent.runCycle(0);
+
+        agent.runCycle(0);
+        agent.runCycle(0);
+
         agent.runCycle(0);
         agent.runCycle(0);
         vm.stopPrank();

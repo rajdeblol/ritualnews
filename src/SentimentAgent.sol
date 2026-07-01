@@ -50,6 +50,7 @@ contract SentimentAgent {
     uint256 public cycleState; // 0 = fetch, 1 = analyze
     string[] public currentHeadlines;
     string[] public currentSources;
+    string[] public currentUrls;
 
     event CycleCompleted(uint256 indexed cycle, int8 score, string signal, uint256 timestamp);
     event CycleSkipped(uint256 indexed cycle, string reason);
@@ -99,7 +100,7 @@ contract SentimentAgent {
             cycleCount++;
             uint256 currentCycle = cycleCount;
 
-            (string[] memory headlines, string[] memory sources, bool anySourceSucceeded) = _fetchAllNews();
+            (string[] memory headlines, string[] memory sources, string[] memory urls, bool anySourceSucceeded) = _fetchAllNews();
 
             if (!anySourceSucceeded || headlines.length == 0) {
                 emit CycleSkipped(currentCycle, "all news sources failed or returned 0 headlines");
@@ -109,9 +110,11 @@ contract SentimentAgent {
 
             delete currentHeadlines;
             delete currentSources;
+            delete currentUrls;
             for (uint i = 0; i < headlines.length; i++) {
                 currentHeadlines.push(headlines[i]);
                 currentSources.push(sources[i]);
+                currentUrls.push(urls[i]);
             }
             cycleState = 1;
 
@@ -146,12 +149,13 @@ contract SentimentAgent {
                 emit CycleSkipped(currentCycle, "LLM analysis failed after retry");
             } else {
                 require(score >= -100 && score <= 100, "score out of range");
-                sentimentFeed.pushSnapshot(score, signal, riskLevel, summary, topTokens, currentHeadlines, currentSources, headlineSentiments);
+                sentimentFeed.pushSnapshot(score, signal, riskLevel, summary, topTokens, currentHeadlines, currentSources, headlineSentiments, currentUrls);
                 emit CycleCompleted(currentCycle, score, signal, block.timestamp);
             }
             
             delete currentHeadlines;
             delete currentSources;
+            delete currentUrls;
             cycleState = 0;
             
             _reschedule(BLOCKS_PER_HOUR);
@@ -160,10 +164,11 @@ contract SentimentAgent {
 
     function _fetchAllNews()
         internal
-        returns (string[] memory headlines, string[] memory sources, bool anySuccess)
+        returns (string[] memory headlines, string[] memory sources, string[] memory urls, bool anySuccess)
     {
         string[] memory workingHeadlines = new string[](MAX_HEADLINES);
         string[] memory workingSources = new string[](MAX_HEADLINES);
+        string[] memory workingUrls = new string[](MAX_HEADLINES);
         uint256 totalCount;
 
         totalCount = _appendSourceHeadlines(
@@ -171,6 +176,29 @@ contract SentimentAgent {
             "NewsAPI",
             workingHeadlines,
             workingSources,
+            workingUrls,
+            totalCount,
+            anySuccess
+        );
+        anySuccess = anySuccess || totalCount > 0;
+
+        totalCount = _appendSourceHeadlines(
+            cryptoPanicUrl,
+            "CryptoPanic",
+            workingHeadlines,
+            workingSources,
+            workingUrls,
+            totalCount,
+            anySuccess
+        );
+        anySuccess = anySuccess || totalCount > 0;
+
+        totalCount = _appendSourceHeadlines(
+            cryptoCompareUrl,
+            "CryptoCompare",
+            workingHeadlines,
+            workingSources,
+            workingUrls,
             totalCount,
             anySuccess
         );
@@ -178,6 +206,7 @@ contract SentimentAgent {
 
         headlines = _trimArray(workingHeadlines, totalCount);
         sources = _trimArray(workingSources, totalCount);
+        urls = _trimArray(workingUrls, totalCount);
     }
 
     function _appendSourceHeadlines(
@@ -185,10 +214,11 @@ contract SentimentAgent {
         string memory sourceName,
         string[] memory allHeadlines,
         string[] memory allSources,
+        string[] memory allUrls,
         uint256 totalCount,
         bool /* anySuccess */
     ) internal returns (uint256) {
-        (bool success, string[] memory parsedHeadlines) = _fetchFromSource(url, sourceName);
+        (bool success, string[] memory parsedHeadlines, string[] memory parsedUrls) = _fetchFromSource(url, sourceName);
         if (!success || parsedHeadlines.length == 0) {
             return totalCount;
         }
@@ -200,6 +230,7 @@ contract SentimentAgent {
             }
             allHeadlines[totalCount] = parsedHeadlines[i];
             allSources[totalCount] = sourceName;
+            allUrls[totalCount] = parsedUrls[i];
             totalCount++;
             addedCount++;
         }
@@ -215,7 +246,7 @@ contract SentimentAgent {
 
     function _fetchFromSource(string memory url, string memory sourceName)
         internal
-        returns (bool success, string[] memory headlines)
+        returns (bool success, string[] memory headlines, string[] memory urls)
     {
         string[] memory headerKeys = new string[](2);
         string[] memory headerValues = new string[](2);
@@ -228,7 +259,7 @@ contract SentimentAgent {
         (bool callSuccess, bytes memory response) = HTTP_PRECOMPILE.staticcall(payload);
         if (!callSuccess || response.length == 0) {
             emit SourceFailed(sourceName);
-            return (false, new string[](0));
+            return (false, new string[](0), new string[](0));
         }
 
         bytes memory body = _decodeHttpBody(response);
@@ -236,7 +267,7 @@ contract SentimentAgent {
             body = response;
         }
 
-        headlines = _extractHeadlinesFromJson(body, sourceName);
+        (headlines, urls) = _extractHeadlinesFromJson(body, sourceName);
         success = headlines.length > 0;
         if (!success) {
             emit SourceFailed(sourceName);
@@ -525,27 +556,37 @@ contract SentimentAgent {
     function _extractHeadlinesFromJson(bytes memory body, string memory sourceName)
         internal
         pure
-        returns (string[] memory)
+        returns (string[] memory, string[] memory)
     {
-        bytes memory key = _headlineKeyForSource(sourceName);
+        bytes memory titleKey = _headlineKeyForSource(sourceName);
+        bytes memory urlKey = bytes('"url"');
         uint256 searchFrom;
-        string[] memory found = new string[](MAX_HEADLINES_PER_SOURCE);
+        string[] memory foundHeadlines = new string[](MAX_HEADLINES_PER_SOURCE);
+        string[] memory foundUrls = new string[](MAX_HEADLINES_PER_SOURCE);
         uint256 count;
 
         while (count < MAX_HEADLINES_PER_SOURCE) {
-            uint256 keyPos = _findBytes(body, key, searchFrom);
-            if (keyPos == type(uint256).max) {
+            uint256 titleKeyPos = _findBytes(body, titleKey, searchFrom);
+            if (titleKeyPos == type(uint256).max) {
                 break;
             }
-            string memory headline = _extractQuotedValueAfterKey(body, keyPos + key.length);
+            string memory headline = _extractQuotedValueAfterKey(body, titleKeyPos + titleKey.length);
+            
+            uint256 urlKeyPos = _findBytes(body, urlKey, titleKeyPos + titleKey.length);
+            string memory urlValue = "";
+            if (urlKeyPos != type(uint256).max) {
+                urlValue = _extractQuotedValueAfterKey(body, urlKeyPos + urlKey.length);
+            }
+
             if (bytes(headline).length > 0) {
-                found[count] = headline;
+                foundHeadlines[count] = headline;
+                foundUrls[count] = urlValue;
                 count++;
             }
-            searchFrom = keyPos + key.length;
+            searchFrom = titleKeyPos + titleKey.length;
         }
 
-        return _trimArray(found, count);
+        return (_trimArray(foundHeadlines, count), _trimArray(foundUrls, count));
     }
 
     function _headlineKeyForSource(string memory sourceName) internal pure returns (bytes memory) {
