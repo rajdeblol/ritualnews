@@ -1,3 +1,4 @@
+import { timeAgo } from '@/lib/utils';
 import type { Snapshot } from '@/lib/useSentimentFeed';
 
 function sentimentPillTone(value?: string) {
@@ -12,7 +13,7 @@ export function HeadlinesFeed({ hasNoData, snapshot }: { hasNoData?: boolean; sn
       <div className="flex items-center justify-between border-b border-border px-6 py-4">
         <p className="text-[10px] uppercase tracking-[0.2em] text-muted font-medium">Live Headlines Feed</p>
         <span className="text-[9px] uppercase tracking-wider text-muted">
-          {snapshot?.headlineCount?.toString() ?? '0'} headlines · updated {snapshot?.timestamp ? '6m ago' : '—'}
+          {snapshot?.headlineCount?.toString() ?? '0'} headlines · updated {timeAgo(snapshot?.timestamp)}
         </span>
       </div>
       <div className="flex flex-col">

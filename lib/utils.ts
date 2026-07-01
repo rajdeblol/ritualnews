@@ -9,6 +9,15 @@ export function formatTimestamp(value?: bigint) {
   }).format(new Date(Number(value)));
 }
 
+export function timeAgo(value?: bigint) {
+  if (!value) return '—';
+  const diff = Math.floor(Date.now() / 1000) - Math.floor(Number(value) / 1000);
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
 export function formatCountdown(value?: number) {
   if (value == null) return '—';
   const total = Math.max(0, value);

@@ -1,4 +1,5 @@
-import { formatTimestamp } from '@/lib/utils';
+import { formatTimestamp, timeAgo, shortAddress } from '@/lib/utils';
+import { sentimentFeedAddress } from '@/lib/contract';
 import type { Snapshot } from '@/lib/useSentimentFeed';
 
 export function HeroSummary({ hasNoData, snapshot }: { hasNoData?: boolean; snapshot?: Snapshot }) {
@@ -26,7 +27,7 @@ export function HeroSummary({ hasNoData, snapshot }: { hasNoData?: boolean; snap
       </div>
       <div>
         <p className="text-[10px] text-muted">
-          Last update <span className="text-amber font-medium">{snapshot?.timestamp ? '6m ago' : '—'}</span> - Contract 0x11b7…bCe7
+          Last update <span className="text-amber font-medium">{timeAgo(snapshot?.timestamp)}</span> - Contract {shortAddress(sentimentFeedAddress)}
         </p>
       </div>
     </article>

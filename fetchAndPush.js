@@ -51,7 +51,18 @@ async function fetchNews() {
     return [];
 }
 
-function analyzeSentiment(articles) {
+async function fetchPrices() {
+    try {
+        const url = 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,binancecoin&vs_currencies=usd&include_24hr_change=true';
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        return await res.json();
+    } catch (err) {
+        return null;
+    }
+}
+
+function analyzeSentiment(articles, prices) {
     const headlines = [];
     const sources = [];
     const headlineSentiments = [];
@@ -110,11 +121,23 @@ function analyzeSentiment(articles) {
         .slice(0, 5)
         .map(e => e[0]);
 
+    let priceText = "";
+    if (prices && prices.bitcoin && prices.bitcoin.usd_24h_change) {
+        const change = prices.bitcoin.usd_24h_change;
+        const direction = change >= 0 ? "surged" : "dropped";
+        priceText = ` In the last 24h, BTC price ${direction} by ${Math.abs(change).toFixed(2)}% to $${prices.bitcoin.usd}.`;
+        
+        if (prices.ethereum && prices.ethereum.usd_24h_change) {
+            const ethChange = prices.ethereum.usd_24h_change;
+            priceText += ` ETH ${ethChange >= 0 ? "rose" : "fell"} by ${Math.abs(ethChange).toFixed(2)}%.`;
+        }
+    }
+
     const theme = totalScore > 0 
         ? "Market shows positive momentum with bullish keywords detected"
         : (totalScore < 0 ? "Market shows caution with bearish keywords detected" : "Market appears mixed and neutral");
 
-    const summary = `${headlines.length} headlines analyzed this hour. Market sentiment is ${signal} with a score of ${totalScore}. Top mentioned assets: ${sortedTokens.join(", ") || "None"}. ${theme}.`;
+    const summary = `${headlines.length} headlines analyzed. Market sentiment is ${signal} (score: ${totalScore}). Top assets: ${sortedTokens.join(", ") || "None"}.${priceText} ${theme}.`;
 
     return {
         score: totalScore,
@@ -183,7 +206,8 @@ async function runCycle() {
         }
 
         logInfo(`Fetched ${articles.length} articles.`);
-        const analysis = analyzeSentiment(articles);
+        const prices = await fetchPrices();
+        const analysis = analyzeSentiment(articles, prices);
         
         logInfo(`Analysis Result -> Score: ${analysis.score}, Signal: ${analysis.signal}`);
         pushToContract(analysis);
