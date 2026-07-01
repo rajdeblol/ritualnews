@@ -1,0 +1,21 @@
+node_modules
+.next
+out-tsc
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.env.local
+
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Foundry
+out/
+cache/
+broadcast/
+
+# Mac
+.DS_Store
