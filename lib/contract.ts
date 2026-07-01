@@ -98,8 +98,8 @@ export const explorerUrl = ritualChain.blockExplorers.default.url;
 export const docsUrl = 'https://www.ritualfoundation.org';
 export const discordUrl = 'https://www.ritualfoundation.org';
 
-export const sentimentFeedAddress = process.env.NEXT_PUBLIC_SENTIMENT_FEED_ADDRESS as `0x${string}` | undefined;
-export const sentimentAgentAddress = process.env.NEXT_PUBLIC_SENTIMENT_AGENT_ADDRESS as `0x${string}` | undefined;
+export const sentimentFeedAddress = '0x16534029323106CeC29C01431f46f53620CBA501' as `0x${string}`;
+export const sentimentAgentAddress = '0xd277be9410fC1C0f2C704ea2e8E086AA1B50ab00' as `0x${string}`;
 
 export const ritualPublicClient = createPublicClient({
   chain: ritualChain,
