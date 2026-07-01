@@ -6,7 +6,7 @@ export function formatTimestamp(value?: bigint) {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-  }).format(new Date(Number(value) * 1000));
+  }).format(new Date(Number(value)));
 }
 
 export function formatCountdown(value?: number) {
