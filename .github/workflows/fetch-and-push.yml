@@ -1,0 +1,31 @@
+name: Fetch and Push News
+on:
+  schedule:
+    - cron: '0 * * * *' # Runs at the top of every hour
+  workflow_dispatch: # Allows manual trigger from the GitHub UI
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Foundry (for cast)
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Run fetchAndPush.js
+        env:
+          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          SENTIMENT_FEED_ADDRESS: ${{ secrets.SENTIMENT_FEED_ADDRESS }}
+          RPC_URL: ${{ secrets.RPC_URL }}
+        run: node fetchAndPush.js
