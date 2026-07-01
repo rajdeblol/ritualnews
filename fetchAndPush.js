@@ -141,13 +141,12 @@ function pushToContract(analysis) {
     const headlinesStr = escapeBashString(`[${analysis.headlines.map(h => `"${h.replace(/"/g, '\\"')}"`).join(",")}]`);
     const sourcesStr = escapeBashString(`[${analysis.sources.map(s => `"${s.replace(/"/g, '\\"')}"`).join(",")}]`);
     const sentimentsStr = escapeBashString(`[${analysis.headlineSentiments.map(s => `"${s}"`).join(",")}]`);
-    const urlsStr = escapeBashString(`[${analysis.urls.map(u => `"${u.replace(/"/g, '\\"')}"`).join(",")}]`);
 
     const summaryStr = escapeBashString(analysis.summary);
 
-    const castCommand = `cast send ${CONTRACT_ADDRESS} "pushSnapshot(int8,string,string,string,string[],string[],string[],string[],string[])" ` +
+    const castCommand = `cast send ${CONTRACT_ADDRESS} "pushSnapshot(int8,string,string,string,string[],string[],string[],string[])" ` +
         `${analysis.score} "${analysis.signal}" "${analysis.riskLevel}" ${summaryStr} ` +
-        `${topTokensStr} ${headlinesStr} ${sourcesStr} ${sentimentsStr} ${urlsStr} ` +
+        `${topTokensStr} ${headlinesStr} ${sourcesStr} ${sentimentsStr} ` +
         `--rpc-url ${RPC_URL} --private-key ${PRIVATE_KEY}`;
 
     logInfo("Executing cast send...");
